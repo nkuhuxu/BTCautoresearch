@@ -30,7 +30,7 @@ from scipy.optimize import curve_fit, minimize
 
 def formula(days, a, b):
     """Shifted power law: log10(d + 200) models earlier effective genesis."""
-    return a * np.log10(days + 350.0) + b
+    return a * np.log10(days + 325.0) + b
 
 
 # Initial parameter guesses for curve_fit
@@ -53,7 +53,7 @@ def model_fn(train_days, train_log_prices, test_days):
     The extrapolated residual decays toward zero with 120-day half-life.
     """
     # Huber-robust fitting of power law
-    log10_days = np.log10(train_days + 350.0)
+    log10_days = np.log10(train_days + 325.0)
 
     # Recency weights: more weight to recent data
     span = len(train_days)
