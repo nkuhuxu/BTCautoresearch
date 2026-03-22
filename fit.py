@@ -94,7 +94,7 @@ def model_fn(train_days, train_log_prices, test_days):
     t = local_days - last_day
     # Recency-weighted slope (upweight recent days)
     n = len(t)
-    sw = np.exp(0.5 * np.arange(n) / n)
+    sw = np.exp(0.7 * np.arange(n) / n)
     sw /= sw.sum()
     cov = np.cov(t, local_resid, aweights=sw)
     slope = cov[0, 1] / cov[0, 0] if cov[0, 0] > 0 else 0.0
