@@ -92,12 +92,16 @@ def model_fn(train_days, train_log_prices, test_days):
     slope = np.polyfit(t, local_resid, 1)[0]
     r0 = local_resid[-1]  # value at last_day
 
-    # Extrapolate residual with decay
-    half_life = 120.0
+    # Ensemble of 5 half-life values (model averaging over time scales)
     dt = test_days - last_day
-    decay = np.exp(-np.log(2) * dt / half_life)
+    trend_pred = formula(test_days, a, b)
+    corrections = []
+    for hl in [60.0, 90.0, 120.0, 150.0, 180.0]:
+        decay = np.exp(-np.log(2) * dt / hl)
+        corrections.append((r0 + slope * dt) * decay)
+    ensemble_correction = np.mean(corrections, axis=0)
 
-    return formula(test_days, a, b) + (r0 + slope * dt) * decay
+    return trend_pred + ensemble_correction
 
 
 # ============================================================
