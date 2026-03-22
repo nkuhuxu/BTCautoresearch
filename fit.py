@@ -92,7 +92,12 @@ def model_fn(train_days, train_log_prices, test_days):
 
     last_day = train_days[-1]
     t = local_days - last_day
-    slope = np.polyfit(t, local_resid, 1)[0]
+    # Recency-weighted slope (upweight recent days)
+    n = len(t)
+    sw = np.exp(1.0 * np.arange(n) / n)
+    sw /= sw.sum()
+    cov = np.cov(t, local_resid, aweights=sw)
+    slope = cov[0, 1] / cov[0, 0] if cov[0, 0] > 0 else 0.0
     r0 = local_resid[-1]
 
     dt = test_days - last_day
