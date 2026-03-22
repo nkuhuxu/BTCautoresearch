@@ -57,7 +57,7 @@ def model_fn(train_days, train_log_prices, test_days):
 
     # Recency weights: more weight to recent data
     span = len(train_days)
-    raw_weights = np.exp(-0.6 * np.arange(span) / span)
+    raw_weights = np.exp(-1.0 * np.arange(span) / span)
     weights = raw_weights / raw_weights.sum() * span
 
     def huber_loss(params):
