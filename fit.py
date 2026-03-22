@@ -14,11 +14,11 @@ The model_fn receives:
 It must return:
   - np.array of predicted log10(price_usd) for each test day
 
-Current model: POWER LAW + LAST-DAY DEVIATION DECAY
-  Fit power law on all training data, use the last training day's residual
-  as the deviation, then predict with it decaying toward zero.
-  prediction = a*log10(d) + b + last_residual * exp(-log(2) * dt / half_life)
-  where half_life = 180 days (6 months)
+Current model: POWER LAW + LOCAL LINEAR RESIDUAL EXTRAPOLATION
+  Fit power law on all training data. Fit a linear trend to the last 30 days
+  of residuals to get level + velocity. Extrapolate with 180-day decay.
+  r_forecast(dt) = (r0 + slope * dt) * exp(-log(2)*dt/half_life)
+  where r0 = last residual, slope from OLS on last 30d residuals
 """
 
 import numpy as np
@@ -48,10 +48,10 @@ BOUNDS = (-np.inf, np.inf)
 
 def model_fn(train_days, train_log_prices, test_days):
     """
-    Power law + last-day deviation decay.
-    Fit the long-term trend, use the last training day's residual as the
-    deviation, then decay it back to zero (mean reversion).
-    Half-life of 180 days.
+    Power law + local linear residual extrapolation.
+    Fit the long-term trend, then fit a local linear model to the last 30 days
+    of residuals to capture both the current level and trend velocity.
+    The extrapolated residual decays toward zero with 180-day half-life.
     """
     try:
         popt, _ = curve_fit(
@@ -68,15 +68,23 @@ def model_fn(train_days, train_log_prices, test_days):
 
     a, b = popt
 
-    # Use the last training day's residual as deviation from trend
-    deviation = train_log_prices[-1] - formula(train_days[-1], a, b)
+    # Fit linear trend to last 30 days of residuals
+    n_local = min(30, len(train_days))
+    local_days = train_days[-n_local:]
+    local_resid = train_log_prices[-n_local:] - formula(local_days, a, b)
 
-    # Decay the deviation toward zero with half-life of 180 days
+    # OLS: resid ≈ r0 + slope * (d - last_day)
     last_day = train_days[-1]
-    half_life = 180.0
-    decay = np.exp(-np.log(2) * (test_days - last_day) / half_life)
+    t = local_days - last_day  # relative time (0 is the last day)
+    slope = np.polyfit(t, local_resid, 1)[0]
+    r0 = local_resid[-1]  # value at last_day
 
-    return formula(test_days, a, b) + deviation * decay
+    # Extrapolate residual with decay
+    half_life = 180.0
+    dt = test_days - last_day
+    decay = np.exp(-np.log(2) * dt / half_life)
+
+    return formula(test_days, a, b) + (r0 + slope * dt) * decay
 
 
 # ============================================================
