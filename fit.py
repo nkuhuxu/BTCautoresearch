@@ -109,7 +109,7 @@ def model_fn(train_days, train_log_prices, test_days):
 
     # Correction relative to past trend (same convention)
     corrections = []
-    for hl in [70.0, 100.0, 130.0, 160.0, 190.0]:
+    for hl in [65.0, 95.0, 125.0, 155.0, 185.0]:
         decay = np.exp(-np.log(2) * dt / hl)
         corrections.append((r0 + slope * dt) * decay)
     ensemble_correction = np.mean(corrections, axis=0)
