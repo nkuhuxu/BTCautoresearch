@@ -14,11 +14,10 @@ The model_fn receives:
 It must return:
   - np.array of predicted log10(price_usd) for each test day
 
-Current model: HUBER POWER LAW + LOCAL LINEAR RESIDUAL EXTRAPOLATION
-  Fit power law with Huber loss (robust to outliers). Fit linear trend to the
-  last 30 days of residuals. Extrapolate with 120-day decay.
+Current model: RECENCY-WEIGHTED HUBER POWER LAW + LINEAR RESIDUAL EXTRAPOLATION
+  Fit power law with recency-weighted Huber loss (recent data gets 7x more weight).
+  Fit linear trend to the last 30 days of residuals. Extrapolate with 120-day decay.
   r_forecast(dt) = (r0 + slope * dt) * exp(-log(2)*dt/120)
-  where r0 = last residual, slope from OLS on last 30d residuals
 """
 
 import numpy as np
@@ -56,6 +55,11 @@ def model_fn(train_days, train_log_prices, test_days):
     # Huber-robust fitting of power law
     log10_days = np.log10(train_days)
 
+    # Recency weights: more weight to recent data
+    span = len(train_days)
+    raw_weights = np.exp(2.0 * np.arange(span) / span)
+    weights = raw_weights / raw_weights.sum() * span
+
     def huber_loss(params):
         a, b = params
         pred = a * log10_days + b
@@ -65,7 +69,7 @@ def model_fn(train_days, train_log_prices, test_days):
         loss = np.where(mask,
                         0.5 * residuals**2,
                         delta * (np.abs(residuals) - 0.5 * delta))
-        return loss.sum()
+        return (loss * weights).sum()
 
     try:
         # Start from OLS solution
