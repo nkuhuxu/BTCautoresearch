@@ -14,12 +14,11 @@ The model_fn receives:
 It must return:
   - np.array of predicted log10(price_usd) for each test day
 
-Current model: POWER LAW + MEAN-REVERSION DECAY (EWMA)
-  Fit power law on all training data, compute recent deviation from trend
-  using an exponentially weighted mean (EWMA) over the last 180 days,
-  then predict with deviation decaying back to zero.
-  prediction = a*log10(d) + b + ewma_deviation * exp(-log(2) * dt / half_life)
-  where half_life = 180 days (6 months), EWMA span = 60 days
+Current model: POWER LAW + LAST-DAY DEVIATION DECAY
+  Fit power law on all training data, use the last training day's residual
+  as the deviation, then predict with it decaying toward zero.
+  prediction = a*log10(d) + b + last_residual * exp(-log(2) * dt / half_life)
+  where half_life = 180 days (6 months)
 """
 
 import numpy as np
@@ -49,10 +48,10 @@ BOUNDS = (-np.inf, np.inf)
 
 def model_fn(train_days, train_log_prices, test_days):
     """
-    Power law + mean-reversion decay with EWMA deviation.
-    Fit the long-term trend, measure recent deviation using exponentially
-    weighted mean (more weight on recent days), then add a decaying correction.
-    Half-life of 180 days, EWMA span of 60 days.
+    Power law + last-day deviation decay.
+    Fit the long-term trend, use the last training day's residual as the
+    deviation, then decay it back to zero (mean reversion).
+    Half-life of 180 days.
     """
     try:
         popt, _ = curve_fit(
@@ -69,19 +68,8 @@ def model_fn(train_days, train_log_prices, test_days):
 
     a, b = popt
 
-    # Measure deviation using EWMA over last 180 days (span=60 for fast decay)
-    recent_n = min(180, len(train_days))
-    recent_days = train_days[-recent_n:]
-    recent_prices = train_log_prices[-recent_n:]
-    residuals = recent_prices - formula(recent_days, a, b)
-
-    # EWMA: exponential weights, more weight to recent
-    span = 3.0
-    alpha = 1.0 - np.exp(-1.0 / span)
-    n = len(residuals)
-    weights = np.array([(1 - alpha) ** (n - 1 - i) for i in range(n)])
-    weights /= weights.sum()
-    deviation = np.dot(weights, residuals)
+    # Use the last training day's residual as deviation from trend
+    deviation = train_log_prices[-1] - formula(train_days[-1], a, b)
 
     # Decay the deviation toward zero with half-life of 180 days
     last_day = train_days[-1]
