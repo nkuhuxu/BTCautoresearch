@@ -76,7 +76,7 @@ def model_fn(train_days, train_log_prices, test_days):
     residuals = recent_prices - formula(recent_days, a, b)
 
     # EWMA: exponential weights, more weight to recent
-    span = 14.0
+    span = 7.0
     alpha = 1.0 - np.exp(-1.0 / span)
     n = len(residuals)
     weights = np.array([(1 - alpha) ** (n - 1 - i) for i in range(n)])
