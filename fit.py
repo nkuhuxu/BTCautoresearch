@@ -18,7 +18,7 @@ Current model: POWER LAW + MEAN-REVERSION DECAY
   Fit power law on all training data, compute recent deviation from trend,
   then predict with deviation decaying back to zero.
   prediction = a*log10(d) + b + deviation * exp(-log(2) * dt / half_life)
-  where half_life = 730 days (2 years)
+  where half_life = 180 days (6 months)
 """
 
 import numpy as np
@@ -51,7 +51,7 @@ def model_fn(train_days, train_log_prices, test_days):
     Power law + mean-reversion decay.
     Fit the long-term trend, measure current deviation from it,
     then add a decaying correction so recent over/under-performance fades.
-    Half-life of 730 days (2 years) — one Bitcoin cycle length.
+    Half-life of 180 days (6 months).
     """
     try:
         popt, _ = curve_fit(
@@ -74,9 +74,9 @@ def model_fn(train_days, train_log_prices, test_days):
     recent_prices = train_log_prices[-recent_n:]
     deviation = np.mean(recent_prices - formula(recent_days, a, b))
 
-    # Decay the deviation toward zero with half-life of 365 days
+    # Decay the deviation toward zero with half-life of 180 days
     last_day = train_days[-1]
-    half_life = 365.0
+    half_life = 180.0
     decay = np.exp(-np.log(2) * (test_days - last_day) / half_life)
 
     return formula(test_days, a, b) + deviation * decay
