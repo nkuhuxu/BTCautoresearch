@@ -29,8 +29,8 @@ from scipy.optimize import curve_fit, minimize
 # ============================================================
 
 def formula(days, a, b):
-    """The functional form to fit. Returns log10(price)."""
-    return a * np.log10(days) + b
+    """Shifted power law: log10(d + 200) models earlier effective genesis."""
+    return a * np.log10(days + 200.0) + b
 
 
 # Initial parameter guesses for curve_fit
