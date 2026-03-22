@@ -80,7 +80,7 @@ def model_fn(train_days, train_log_prices, test_days):
     r0 = local_resid[-1]  # value at last_day
 
     # Extrapolate residual with decay
-    half_life = 180.0
+    half_life = 90.0
     dt = test_days - last_day
     decay = np.exp(-np.log(2) * dt / half_life)
 
