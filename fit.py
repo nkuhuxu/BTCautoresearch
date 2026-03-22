@@ -55,7 +55,7 @@ def _fit_trend(log10_days, train_log_prices, gamma):
         a, b = params
         pred = a * log10_days + b
         residuals = train_log_prices - pred
-        delta = 0.5
+        delta = 0.4
         mask = np.abs(residuals) <= delta
         loss = np.where(mask,
                         0.5 * residuals**2,
