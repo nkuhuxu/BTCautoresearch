@@ -80,7 +80,7 @@ def model_fn(train_days, train_log_prices, test_days):
     log10_days = np.log10(train_days + 325.0)
 
     # Fit past-weighted trend (long-term stable)
-    a_past, b_past = _fit_trend(log10_days, train_log_prices, gamma=-1.6)
+    a_past, b_past = _fit_trend(log10_days, train_log_prices, gamma=-1.7)
     # Fit recency-weighted trend (adapts to recent prices)
     a_rec, b_rec = _fit_trend(log10_days, train_log_prices, gamma=+0.65)
 
