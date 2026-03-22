@@ -14,9 +14,11 @@ The model_fn receives:
 It must return:
   - np.array of predicted log10(price_usd) for each test day
 
-Current model: POWER LAW (baseline)
-  log10(price) = a * log10(day) + b
-  This is the Santostasi power law, R² ~ 0.95 in-sample.
+Current model: POWER LAW + MEAN-REVERSION DECAY
+  Fit power law on all training data, compute recent deviation from trend,
+  then predict with deviation decaying back to zero.
+  prediction = a*log10(d) + b + deviation * exp(-log(2) * dt / half_life)
+  where half_life = 730 days (2 years)
 """
 
 import numpy as np
@@ -46,7 +48,10 @@ BOUNDS = (-np.inf, np.inf)
 
 def model_fn(train_days, train_log_prices, test_days):
     """
-    Fit the formula on training data, predict on test data.
+    Power law + mean-reversion decay.
+    Fit the long-term trend, measure current deviation from it,
+    then add a decaying correction so recent over/under-performance fades.
+    Half-life of 730 days (2 years) — one Bitcoin cycle length.
     """
     try:
         popt, _ = curve_fit(
@@ -58,11 +63,23 @@ def model_fn(train_days, train_log_prices, test_days):
             maxfev=10000,
         )
     except RuntimeError:
-        # Fallback: simple polyfit in log-log space
         popt = np.polyfit(np.log10(train_days), train_log_prices, 1)
         return popt[0] * np.log10(test_days) + popt[1]
 
-    return formula(test_days, *popt)
+    a, b = popt
+
+    # Measure deviation of recent 180 days from the long-term trend
+    recent_n = min(180, len(train_days))
+    recent_days = train_days[-recent_n:]
+    recent_prices = train_log_prices[-recent_n:]
+    deviation = np.mean(recent_prices - formula(recent_days, a, b))
+
+    # Decay the deviation toward zero with half-life of 730 days
+    last_day = train_days[-1]
+    half_life = 730.0
+    decay = np.exp(-np.log(2) * (test_days - last_day) / half_life)
+
+    return formula(test_days, a, b) + deviation * decay
 
 
 # ============================================================
