@@ -14,15 +14,15 @@ The model_fn receives:
 It must return:
   - np.array of predicted log10(price_usd) for each test day
 
-Current model: POWER LAW + LOCAL LINEAR RESIDUAL EXTRAPOLATION
-  Fit power law on all training data. Fit a linear trend to the last 30 days
-  of residuals to get level + velocity. Extrapolate with 180-day decay.
-  r_forecast(dt) = (r0 + slope * dt) * exp(-log(2)*dt/half_life)
+Current model: HUBER POWER LAW + LOCAL LINEAR RESIDUAL EXTRAPOLATION
+  Fit power law with Huber loss (robust to outliers). Fit linear trend to the
+  last 30 days of residuals. Extrapolate with 120-day decay.
+  r_forecast(dt) = (r0 + slope * dt) * exp(-log(2)*dt/120)
   where r0 = last residual, slope from OLS on last 30d residuals
 """
 
 import numpy as np
-from scipy.optimize import curve_fit
+from scipy.optimize import curve_fit, minimize
 
 
 # ============================================================
@@ -48,25 +48,34 @@ BOUNDS = (-np.inf, np.inf)
 
 def model_fn(train_days, train_log_prices, test_days):
     """
-    Power law + local linear residual extrapolation.
-    Fit the long-term trend, then fit a local linear model to the last 30 days
-    of residuals to capture both the current level and trend velocity.
-    The extrapolated residual decays toward zero with 180-day half-life.
+    Huber-robust power law + local linear residual extrapolation.
+    Fit power law with Huber loss to reduce influence of price spikes.
+    Then fit a local linear model to the last 30 days of residuals.
+    The extrapolated residual decays toward zero with 120-day half-life.
     """
-    try:
-        popt, _ = curve_fit(
-            formula,
-            train_days,
-            train_log_prices,
-            p0=P0,
-            bounds=BOUNDS,
-            maxfev=10000,
-        )
-    except RuntimeError:
-        popt = np.polyfit(np.log10(train_days), train_log_prices, 1)
-        return popt[0] * np.log10(test_days) + popt[1]
+    # Huber-robust fitting of power law
+    log10_days = np.log10(train_days)
 
-    a, b = popt
+    def huber_loss(params):
+        a, b = params
+        pred = a * log10_days + b
+        residuals = train_log_prices - pred
+        delta = 0.5
+        mask = np.abs(residuals) <= delta
+        loss = np.where(mask,
+                        0.5 * residuals**2,
+                        delta * (np.abs(residuals) - 0.5 * delta))
+        return loss.sum()
+
+    try:
+        # Start from OLS solution
+        ols = np.polyfit(log10_days, train_log_prices, 1)
+        result = minimize(huber_loss, x0=ols, method='Nelder-Mead',
+                          options={'maxiter': 10000, 'xatol': 1e-8, 'fatol': 1e-8})
+        a, b = result.x
+    except Exception:
+        ols = np.polyfit(log10_days, train_log_prices, 1)
+        a, b = ols
 
     # Fit linear trend to last 30 days of residuals
     n_local = min(30, len(train_days))
