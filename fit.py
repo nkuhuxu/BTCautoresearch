@@ -14,14 +14,15 @@ The model_fn receives:
 It must return:
   - np.array of predicted log10(price_usd) for each test day
 
-Current model: RECENCY-WEIGHTED HUBER POWER LAW + LINEAR RESIDUAL EXTRAPOLATION
-  Fit power law with recency-weighted Huber loss (recent data gets 7x more weight).
-  Fit linear trend to the last 30 days of residuals. Extrapolate with 120-day decay.
-  r_forecast(dt) = (r0 + slope * dt) * exp(-log(2)*dt/120)
+Current model: HORIZON-ADAPTIVE TREND BLEND + LOCAL RESIDUAL
+  Two trends: past-weighted (gamma=-0.8) and recency-weighted (gamma=+0.8).
+  At short horizons, blend toward recency trend; at long horizons, use past trend.
+  blend(dt) = past_trend + exp(-dt/tau) * (recency_trend - past_trend)
+  + local residual correction with 5-ensemble.
 """
 
 import numpy as np
-from scipy.optimize import curve_fit, minimize
+from scipy.optimize import minimize
 
 
 # ============================================================
@@ -29,7 +30,7 @@ from scipy.optimize import curve_fit, minimize
 # ============================================================
 
 def formula(days, a, b):
-    """Shifted power law: log10(d + 200) models earlier effective genesis."""
+    """Shifted power law: a * log10(d+325) + b."""
     return a * np.log10(days + 325.0) + b
 
 
@@ -42,22 +43,12 @@ BOUNDS = (-np.inf, np.inf)
 
 # ============================================================
 # MODEL FUNCTION — the agent may also modify this if needed
-# (e.g. to add preprocessing, custom fitting, etc.)
 # ============================================================
 
-def model_fn(train_days, train_log_prices, test_days):
-    """
-    Huber-robust power law + local linear residual extrapolation.
-    Fit power law with Huber loss to reduce influence of price spikes.
-    Then fit a local linear model to the last 30 days of residuals.
-    The extrapolated residual decays toward zero with 120-day half-life.
-    """
-    # Huber-robust fitting of power law
-    log10_days = np.log10(train_days + 325.0)
-
-    # Recency weights: more weight to recent data
-    span = len(train_days)
-    raw_weights = np.exp(-0.8 * np.arange(span) / span)
+def _fit_trend(log10_days, train_log_prices, gamma):
+    """Fit Huber power law trend with given recency weight gamma."""
+    span = len(train_log_prices)
+    raw_weights = np.exp(gamma * np.arange(span) / span)
     weights = raw_weights / raw_weights.sum() * span
 
     def huber_loss(params):
@@ -72,35 +63,53 @@ def model_fn(train_days, train_log_prices, test_days):
         return (loss * weights).sum()
 
     try:
-        # Start from OLS solution (using shifted feature, consistent with huber_loss)
         ols = np.polyfit(log10_days, train_log_prices, 1)
         result = minimize(huber_loss, x0=ols, method='Nelder-Mead',
                           options={'maxiter': 10000, 'xatol': 1e-8, 'fatol': 1e-8})
-        a, b = result.x
+        return result.x
     except Exception:
-        a, b = np.polyfit(log10_days, train_log_prices, 1)
+        return np.polyfit(log10_days, train_log_prices, 1)
 
-    # Fit linear trend to last 30 days of residuals
+
+def model_fn(train_days, train_log_prices, test_days):
+    """
+    Two Huber trends (past gamma=-0.8 and recency gamma=+0.8) blended adaptively.
+    At short horizons, blend toward recency; at long horizons, use past trend.
+    Plus local 30-day linear residual with 5-ensemble decay.
+    """
+    log10_days = np.log10(train_days + 325.0)
+
+    # Fit past-weighted trend (long-term stable)
+    a_past, b_past = _fit_trend(log10_days, train_log_prices, gamma=-0.8)
+    # Fit recency-weighted trend (adapts to recent prices)
+    a_rec, b_rec = _fit_trend(log10_days, train_log_prices, gamma=+0.8)
+
+    # Use past trend for the residual correction baseline
+    local_a, local_b = a_past, b_past
     n_local = min(30, len(train_days))
     local_days = train_days[-n_local:]
-    local_resid = train_log_prices[-n_local:] - formula(local_days, a, b)
+    local_resid = train_log_prices[-n_local:] - formula(local_days, local_a, local_b)
 
-    # OLS: resid ≈ r0 + slope * (d - last_day)
     last_day = train_days[-1]
-    t = local_days - last_day  # relative time (0 is the last day)
+    t = local_days - last_day
     slope = np.polyfit(t, local_resid, 1)[0]
-    r0 = local_resid[-1]  # value at last_day
+    r0 = local_resid[-1]
 
-    # Ensemble of 5 half-life values (model averaging over time scales)
     dt = test_days - last_day
-    trend_pred = formula(test_days, a, b)
+
+    # Horizon-adaptive trend blend: at dt=0, use recency; at large dt, use past
+    tau_blend = 180.0  # blend half-life
+    w_rec = np.exp(-dt / tau_blend)  # weight on recency trend
+    blend_trend = w_rec * formula(test_days, a_rec, b_rec) + (1 - w_rec) * formula(test_days, a_past, b_past)
+
+    # Correction relative to past trend (same convention)
     corrections = []
     for hl in [60.0, 90.0, 120.0, 150.0, 180.0]:
         decay = np.exp(-np.log(2) * dt / hl)
         corrections.append((r0 + slope * dt) * decay)
     ensemble_correction = np.mean(corrections, axis=0)
 
-    return trend_pred + ensemble_correction
+    return blend_trend + ensemble_correction
 
 
 # ============================================================
