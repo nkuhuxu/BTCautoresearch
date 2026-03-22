@@ -53,7 +53,7 @@ def model_fn(train_days, train_log_prices, test_days):
     The extrapolated residual decays toward zero with 120-day half-life.
     """
     # Huber-robust fitting of power law
-    log10_days = np.log10(train_days)
+    log10_days = np.log10(train_days + 100.0)
 
     # Recency weights: more weight to recent data
     span = len(train_days)
@@ -72,14 +72,13 @@ def model_fn(train_days, train_log_prices, test_days):
         return (loss * weights).sum()
 
     try:
-        # Start from OLS solution
+        # Start from OLS solution (using shifted feature, consistent with huber_loss)
         ols = np.polyfit(log10_days, train_log_prices, 1)
         result = minimize(huber_loss, x0=ols, method='Nelder-Mead',
                           options={'maxiter': 10000, 'xatol': 1e-8, 'fatol': 1e-8})
         a, b = result.x
     except Exception:
-        ols = np.polyfit(log10_days, train_log_prices, 1)
-        a, b = ols
+        a, b = np.polyfit(log10_days, train_log_prices, 1)
 
     # Fit linear trend to last 30 days of residuals
     n_local = min(30, len(train_days))
