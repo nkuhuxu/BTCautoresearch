@@ -97,7 +97,7 @@ def model_fn(train_days, train_log_prices, test_days):
     sw = np.exp(0.65 * np.arange(n) / n)
     sw /= sw.sum()
     cov = np.cov(t, local_resid, aweights=sw)
-    slope = cov[0, 1] / cov[0, 0] if cov[0, 0] > 0 else 0.0
+    slope = (cov[0, 1] / cov[0, 0] if cov[0, 0] > 0 else 0.0) * 0.9
     r0 = local_resid[-1]
 
     dt = test_days - last_day
