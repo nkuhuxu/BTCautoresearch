@@ -74,9 +74,9 @@ def model_fn(train_days, train_log_prices, test_days):
     recent_prices = train_log_prices[-recent_n:]
     deviation = np.mean(recent_prices - formula(recent_days, a, b))
 
-    # Decay the deviation toward zero with half-life of 730 days
+    # Decay the deviation toward zero with half-life of 365 days
     last_day = train_days[-1]
-    half_life = 730.0
+    half_life = 365.0
     decay = np.exp(-np.log(2) * (test_days - last_day) / half_life)
 
     return formula(test_days, a, b) + deviation * decay
