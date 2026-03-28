@@ -103,8 +103,13 @@ def model_fn(train_days, train_log_prices, test_days):
     dt = test_days - last_day
 
     # Horizon-adaptive trend blend: at dt=0, use recency; at large dt, use past
+<<<<<<< HEAD
     tau_blend = 150.0  # blend half-life
-    w_rec = np.exp(-(dt / tau_blend) ** 11.0)  # 10th-power blend
+    w_rec = np.exp(-(dt / tau_blend) ** 12.0)  # 10th-power blend
+=======
+    tau_blend = 160.0  # blend half-life
+    w_rec = 1.0 / (1.0 + np.exp((dt - tau_blend) / 15.0))  # logistic blend, sigma=15
+>>>>>>> 0e26ca325027efc7e88908bcef19f2d41367d70b
     blend_trend = w_rec * formula(test_days, a_rec, b_rec) + (1 - w_rec) * formula(test_days, a_past, b_past)
 
     # Correction relative to past trend (same convention)
