@@ -32,7 +32,7 @@ LOOP FOREVER:
   5. Extract: grep "^mean_rmse:" run.log
   6. If grep is empty → crash. Read run.log, fix or revert.
   7. Log to results.tsv (do NOT commit results.tsv)
-  8. If mean_rmse IMPROVED (lower) → KEEP the commit
+  8. If mean_rmse IMPROVED (lower) → KEEP the commit → git push origin <branch>
   9. If mean_rmse EQUAL or WORSE → git reset to prior commit (REVERT)
 ```
 
