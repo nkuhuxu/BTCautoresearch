@@ -31,7 +31,7 @@ from scipy.optimize import minimize
 
 def formula(days, a, b):
     """Shifted power law: a * log10(d+325) + b."""
-    return a * np.log10(days + 325.0) + b
+    return a * np.log10(days + 330.0) + b
 
 
 # Initial parameter guesses for curve_fit
@@ -77,7 +77,7 @@ def model_fn(train_days, train_log_prices, test_days):
     At short horizons, blend toward recency; at long horizons, use past trend.
     Plus local 30-day linear residual with 5-ensemble decay.
     """
-    log10_days = np.log10(train_days + 325.0)
+    log10_days = np.log10(train_days + 330.0)
 
     # Fit past-weighted trend (long-term stable)
     a_past, b_past = _fit_trend(log10_days, train_log_prices, gamma=-3.2)
