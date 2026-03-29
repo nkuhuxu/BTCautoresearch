@@ -98,7 +98,7 @@ def model_fn(train_days, train_log_prices, test_days):
     sw /= sw.sum()
     cov = np.cov(t, local_resid, aweights=sw)
     slope = (cov[0, 1] / cov[0, 0] if cov[0, 0] > 0 else 0.0) * 0.88
-    r0 = np.median(local_resid[-3:])
+    r0 = np.median(local_resid[-4:])
 
     dt = test_days - last_day
 
