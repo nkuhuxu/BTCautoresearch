@@ -30,16 +30,17 @@ from scipy.optimize import curve_fit
 # MODEL DEFINITION — modify this section
 # ============================================================
 
-def formula(days, a, b, c):
-    """Shifted power law: a * log10(days + c) + b."""
-    return a * np.log10(days + c) + b
+def formula(days, a, b, c, d):
+    """Quadratic in log-space: a * log10(days+c)^2 + b * log10(days+c) + d."""
+    log_d = np.log10(days + c)
+    return a * log_d**2 + b * log_d + d
 
 
 # Initial parameter guesses for curve_fit
-P0 = [5.0, -15.0, 300.0]
+P0 = [0.0, 5.0, -15.0, 300.0]
 
 # Parameter bounds (use None for unbounded)
-BOUNDS = ([-np.inf, -np.inf, 1.0], [np.inf, np.inf, 2000.0])
+BOUNDS = ([-10.0, -np.inf, -np.inf, 1.0], [10.0, np.inf, np.inf, 2000.0])
 
 
 # ============================================================
@@ -67,13 +68,13 @@ def model_fn(train_days, train_log_prices, test_days):
         popt = np.polyfit(np.log10(train_days), train_log_prices, 1)
         return popt[0] * np.log10(test_days) + popt[1]
 
-    a, b, c = popt
+    a, b, c, d = popt
 
     # Measure deviation using EWMA over last 180 days (span=60 for fast decay)
     recent_n = min(180, len(train_days))
     recent_days = train_days[-recent_n:]
     recent_prices = train_log_prices[-recent_n:]
-    residuals = recent_prices - formula(recent_days, a, b, c)
+    residuals = recent_prices - formula(recent_days, a, b, c, d)
 
     # EWMA: exponential weights, more weight to recent
     span = 14.0
@@ -88,7 +89,7 @@ def model_fn(train_days, train_log_prices, test_days):
     half_life = 180.0
     decay = np.exp(-np.log(2) * (test_days - last_day) / half_life)
 
-    return formula(test_days, a, b, c) + deviation * decay
+    return formula(test_days, a, b, c, d) + deviation * decay
 
 
 # ============================================================
