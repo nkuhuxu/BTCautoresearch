@@ -91,7 +91,7 @@ def model_fn(train_days, train_log_prices, test_days):
     if n_trend > 1:
         x = np.arange(n_trend)
         slope = np.polyfit(x, residuals[-n_trend:], 1)[0]
-        trend = slope * dt / 25.0  # Scale by days
+        trend = slope * dt / 20.0  # Scale by days
     else:
         trend = 0.0
 
