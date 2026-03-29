@@ -65,8 +65,9 @@ def model_fn(train_days, train_log_prices, test_days):
             maxfev=10000,
         )
     except RuntimeError:
-        popt = np.polyfit(np.log10(train_days), train_log_prices, 1)
-        return popt[0] * np.log10(test_days) + popt[1]
+        popt = np.polyfit(np.log10(train_days), train_log_prices, 2)
+        log_test = np.log10(test_days)
+        return popt[0] * log_test**2 + popt[1] * log_test + popt[2]
 
     a, b, c, d = popt
 
