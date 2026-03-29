@@ -37,7 +37,7 @@ def formula(days, a, b, c, d):
 
 
 # Initial parameter guesses for curve_fit
-P0 = [0.0, 5.0, -15.0, 300.0]
+P0 = [-0.5, 6.0, -10.0, 400.0]
 
 # Parameter bounds (use None for unbounded)
 BOUNDS = ([-np.inf, -np.inf, -np.inf, 1.0], [np.inf, np.inf, np.inf, 2000.0])
