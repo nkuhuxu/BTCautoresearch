@@ -76,13 +76,8 @@ def model_fn(train_days, train_log_prices, test_days):
     recent_prices = train_log_prices[-recent_n:]
     residuals = recent_prices - formula(recent_days, a, b, c, d)
 
-    # EWMA: exponential weights, more weight to recent
-    span = 0.1
-    alpha = 1.0 - np.exp(-1.0 / span)
-    n = len(residuals)
-    weights = np.array([(1 - alpha) ** (n - 1 - i) for i in range(n)])
-    weights /= weights.sum()
-    deviation = np.dot(weights, residuals)
+    # Simple last-day deviation (no smoothing)
+    deviation = residuals[-1] if len(residuals) > 0 else 0.0
 
     # Decay the deviation toward zero with half-life of 180 days
     last_day = train_days[-1]
