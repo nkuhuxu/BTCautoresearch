@@ -70,8 +70,8 @@ def model_fn(train_days, train_log_prices, test_days):
 
     a, b, c, d = popt
 
-    # Measure deviation using EWMA over last 180 days (span=60 for fast decay)
-    recent_n = min(180, len(train_days))
+    # Measure deviation using last 365 days
+    recent_n = min(365, len(train_days))
     recent_days = train_days[-recent_n:]
     recent_prices = train_log_prices[-recent_n:]
     residuals = recent_prices - formula(recent_days, a, b, c, d)
