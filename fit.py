@@ -79,12 +79,23 @@ def model_fn(train_days, train_log_prices, test_days):
     # Simple last-day deviation (no smoothing)
     deviation = residuals[-1] if len(residuals) > 0 else 0.0
 
-    # Decay the deviation toward zero with half-life of 180 days
+    # Blend formula with linear extrapolation of recent residuals
     last_day = train_days[-1]
+    dt = test_days - last_day
     half_life = 180.0
-    decay = np.exp(-np.log(2) * (test_days - last_day) / half_life)
+    decay = np.exp(-np.log(2) * dt / half_life)
 
-    return formula(test_days, a, b, c, d) + deviation * decay
+    # Linear trend from last 30 days
+    n_trend = min(30, len(residuals))
+    if n_trend > 1:
+        x = np.arange(n_trend)
+        slope = np.polyfit(x, residuals[-n_trend:], 1)[0]
+        trend = slope * dt / 30.0  # Scale by days
+    else:
+        trend = 0.0
+
+    # Blend: deviation decays, trend continues
+    return formula(test_days, a, b, c, d) + deviation * decay + trend * (1 - decay)
 
 
 # ============================================================
