@@ -88,12 +88,12 @@ def model_fn(train_days, train_log_prices, test_days):
     decay = np.exp(-np.log(2) * dt / half_life_dev)
 
     # Weighted linear trend from last 30 days (emphasize recent)
-    n_trend = min(31, len(residuals))
+    n_trend = min(32, len(residuals))
     if n_trend > 1:
         x = np.arange(n_trend)
         w = np.exp(1.20 * x / n_trend)  # More weight on recent points
         slope, _ = np.polyfit(x, residuals[-n_trend:], 1, w=w)
-        trend = slope * dt / 3.5  # Scale by days
+        trend = slope * dt / 3.3  # Scale by days
     else:
         trend = 0.0
 
