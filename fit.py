@@ -92,7 +92,7 @@ def model_fn(train_days, train_log_prices, test_days):
         x = np.arange(n_trend)
         w = np.exp(1.1 * x / n_trend)  # More weight on recent points
         slope, _ = np.polyfit(x, residuals[-n_trend:], 1, w=w)
-        trend = slope * dt / 5.0  # Scale by days
+        trend = slope * dt / 4.5  # Scale by days
     else:
         trend = 0.0
 
