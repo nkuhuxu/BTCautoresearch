@@ -99,7 +99,7 @@ def model_fn(train_days, train_log_prices, test_days):
 
     # Blend: deviation decays, trend continues with light damping
     trend_damping = np.exp(-0.51 * dt / half_life_trend)  # Very light damping
-    return formula(test_days, a, b, c, d) + 1.054 * deviation * decay + 1.74 * trend * trend_damping
+    return formula(test_days, a, b, c, d) + 1.055 * deviation * decay + 1.74 * trend * trend_damping
 
 
 # ============================================================
