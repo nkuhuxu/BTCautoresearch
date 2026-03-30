@@ -83,7 +83,7 @@ def model_fn(train_days, train_log_prices, test_days):
     # Blend formula with linear extrapolation of recent residuals
     last_day = train_days[-1]
     dt = test_days - last_day
-    half_life = 164.0
+    half_life = 160.0
     decay = np.exp(-np.log(2) * dt / half_life)
 
     # Weighted linear trend from last 30 days (emphasize recent)
