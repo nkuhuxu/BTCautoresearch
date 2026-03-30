@@ -91,7 +91,7 @@ def model_fn(train_days, train_log_prices, test_days):
     n_trend = min(30, len(residuals))
     if n_trend > 1:
         x = np.arange(n_trend)
-        w = np.exp(1.22 * x / n_trend)  # More weight on recent points
+        w = np.exp(1.20 * x / n_trend)  # More weight on recent points
         slope, _ = np.polyfit(x, residuals[-n_trend:], 1, w=w)
         trend = slope * dt / 3.4  # Scale by days
     else:
@@ -99,7 +99,7 @@ def model_fn(train_days, train_log_prices, test_days):
 
     # Blend: deviation decays, trend continues with light damping
     trend_damping = np.exp(-0.48 * dt / half_life_trend)  # Very light damping
-    return formula(test_days, a, b, c, d) + 1.05 * deviation * decay + 1.53 * trend * trend_damping
+    return formula(test_days, a, b, c, d) + 1.06 * deviation * decay + 1.53 * trend * trend_damping
 
 
 # ============================================================
