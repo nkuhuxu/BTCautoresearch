@@ -84,7 +84,7 @@ def model_fn(train_days, train_log_prices, test_days):
     last_day = train_days[-1]
     dt = test_days - last_day
     half_life_dev = 141.0
-    half_life_trend = 129.0
+    half_life_trend = 128.0
     decay = np.exp(-np.log(2) * dt / half_life_dev)
 
     # Weighted linear trend from last 30 days (emphasize recent)
