@@ -83,8 +83,9 @@ def model_fn(train_days, train_log_prices, test_days):
     # Blend formula with linear extrapolation of recent residuals
     last_day = train_days[-1]
     dt = test_days - last_day
-    half_life = 156.0
-    decay = np.exp(-np.log(2) * dt / half_life)
+    half_life_dev = 156.0
+    half_life_trend = 140.0
+    decay = np.exp(-np.log(2) * dt / half_life_dev)
 
     # Weighted linear trend from last 30 days (emphasize recent)
     n_trend = min(30, len(residuals))
@@ -97,7 +98,7 @@ def model_fn(train_days, train_log_prices, test_days):
         trend = 0.0
 
     # Blend: deviation decays, trend continues with light damping
-    trend_damping = np.exp(-0.43 * dt / half_life)  # Very light damping
+    trend_damping = np.exp(-0.43 * dt / half_life_trend)  # Very light damping
     return formula(test_days, a, b, c, d) + 1.08 * deviation * decay + 1.18 * trend * trend_damping
 
 
